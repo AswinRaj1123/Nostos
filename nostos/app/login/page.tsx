@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { authAPI } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -66,37 +67,11 @@ export default function LoginPage() {
     setErrors({});
 
     try {
-      // Call backend API for JWT authentication
-      const response = await fetch('/api/token/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
-      }
-
-      // Store JWT token
-      localStorage.setItem('token', data.access);
-      if (data.refresh) {
-        localStorage.setItem('refreshToken', data.refresh);
-      }
-
-      // Store user info
-      localStorage.setItem('userRole', data.role || formData.role);
-      localStorage.setItem('userEmail', formData.email);
+      // Call backend API for authentication
+      await authAPI.login(formData.email, formData.password, formData.role as 'alumni' | 'admin');
 
       // Redirect based on role
-      const role = data.role || formData.role;
-      if (role === 'admin') {
+      if (formData.role === 'admin') {
         router.push('/admin/dashboard');
       } else {
         router.push('/alumni/dashboard');

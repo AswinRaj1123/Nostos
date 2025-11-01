@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { authAPI } from '@/lib/api';
 
 interface FormData {
   name: string;
@@ -143,34 +144,24 @@ export default function RegisterPage() {
 
     try {
       // Call backend API for registration
-      const response = await fetch('/api/alumni/register/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          graduation_year: formData.graduationYear,
-          department: formData.department,
-          phone_number: formData.phoneNumber,
-          password: formData.password,
-        }),
+      await authAPI.register({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        password2: formData.confirmPassword,
+        phone: formData.phoneNumber,
+        role: 'alumni',
+        department: formData.department,
+        graduation_year: parseInt(formData.graduationYear),
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Registration failed');
-      }
 
       // Show success message
       setIsSuccess(true);
 
-      // Redirect to login page after 3 seconds
+      // Redirect to dashboard after 2 seconds
       setTimeout(() => {
-        router.push('/login');
-      }, 3000);
+        router.push('/alumni/dashboard');
+      }, 2000);
     } catch (error) {
       setErrors({
         general: error instanceof Error ? error.message : 'Registration failed. Please try again.',
