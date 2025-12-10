@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { aiAPI } from '@/lib/api';
 
 interface MessageParams {
   recipient: string;
@@ -68,66 +69,15 @@ export default function AIMessagePage() {
     setGeneratedMessage('');
 
     try {
-      // TODO: Replace with actual LLM API call
-      const params: MessageParams = {
-        recipient: recipientName,
-        recipientType,
-        donationAmount,
-        tone,
-        campaignName: recipientType === 'campaign' ? campaignName : undefined,
-        additionalContext: additionalContext || undefined,
-      };
+      // Call AI API to generate thank you message
+      const result = await aiAPI.generateThankYou({
+        donor_name: recipientName,
+        campaign_title: recipientType === 'campaign' ? campaignName : 'General Fund',
+        amount: parseFloat(donationAmount),
+        tone: tone === 'emotional' ? 'friendly' : tone,
+      });
 
-      console.log('Generating message with params:', params);
-
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Mock generated messages based on tone
-      const mockMessages = {
-        formal: `Dear ${recipientName},
-
-I am writing to express my sincere gratitude for the opportunity to contribute to ${recipientType === 'campaign' ? campaignName : 'our esteemed institution'}. It is with great pleasure that I have made a donation of ${formatCurrency(donationAmount)} towards this noble cause.
-
-As an alumnus of this distinguished institution, I understand the profound impact that such initiatives have on shaping the future of our students and the institution as a whole. Your dedication and leadership in ${recipientType === 'campaign' ? 'organizing this campaign' : 'managing the institution'} are truly commendable.
-
-I trust that this contribution will be utilized effectively to achieve the intended objectives. It is my hope that this gesture will inspire others in our alumni community to participate actively in supporting our alma mater.
-
-${additionalContext ? `\n${additionalContext}\n` : ''}
-Please do not hesitate to reach out if you require any further support or if there are additional ways in which I may contribute to the institution's growth and success.
-
-With warm regards and best wishes for continued success,
-[Your Name]`,
-
-        friendly: `Hi ${recipientName}! 👋
-
-I just wanted to drop you a quick note to say how excited I am to have contributed ${formatCurrency(donationAmount)} to ${recipientType === 'campaign' ? campaignName : 'our amazing institution'}!
-
-Being part of this community has always been special to me, and I'm really happy to be able to give back in this way. ${recipientType === 'campaign' ? 'This campaign' : 'Your work'} is doing such incredible things, and I'm proud to support it.
-
-${additionalContext ? `${additionalContext}\n\n` : ''}Keep up the fantastic work! I can't wait to see the impact this makes. If there's anything else I can do to help, just let me know!
-
-Cheers,
-[Your Name]`,
-
-        emotional: `Dear ${recipientName},
-
-I'm writing this with a heart full of gratitude and emotion. Today, I made a donation of ${formatCurrency(donationAmount)} to ${recipientType === 'campaign' ? campaignName : 'our beloved institution'}, and I wanted you to know what this means to me.
-
-Our institution shaped who I am today. The memories, the lessons, the friendships – they're all woven into the fabric of my life. When I think about the opportunities I was given, the doors that were opened, I'm overwhelmed with thankfulness.
-
-${recipientType === 'campaign' ? 'This campaign represents more than just a project – it\'s about creating opportunities for the next generation, just like the ones that transformed my life.' : 'Your dedication to nurturing young minds and building futures fills me with hope and pride.'}
-
-${additionalContext ? `\n${additionalContext}\n` : ''}
-Every student who benefits from this will carry forward the torch of excellence that we were privileged to hold. This isn't just a donation – it's an investment in dreams, in futures, in the continuation of a legacy that means the world to me.
-
-Thank you for giving me the opportunity to give back. Thank you for everything you do.
-
-With deep appreciation and warmest regards,
-[Your Name]`,
-      };
-
-      setGeneratedMessage(mockMessages[tone]);
+      setGeneratedMessage(result.message);
       setIsGenerating(false);
     } catch (error) {
       console.error('Error generating message:', error);

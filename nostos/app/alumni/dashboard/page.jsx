@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { analyticsAPI, donationsAPI, campaignsAPI, authAPI } from '@/lib/api';
 
 interface DashboardStats {
   totalDonated: number;
@@ -45,109 +46,93 @@ export default function AlumniDashboard() {
   const [monthlyDonations, setMonthlyDonations] = useState<MonthlyDonation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchDashboardData = async () => {
-    try {
-      // TODO: Replace with actual API calls
-      // Simulating API calls with mock data
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Mock stats
-      setStats({
-        totalDonated: 125000,
-        campaignsSupported: 8,
-        recentDonations: 3,
-      });
-
-      // Mock active campaigns
-      setActiveCampaigns([
-        {
-          id: 1,
-          title: 'New Library Construction',
-          description: 'Help us build a state-of-the-art library for students',
-          goal: 5000000,
-          raised: 3250000,
-          daysLeft: 45,
-          image: '/campaign1.jpg',
-        },
-        {
-          id: 2,
-          title: 'Scholarship Fund 2025',
-          description: 'Support deserving students with scholarships',
-          goal: 2000000,
-          raised: 1500000,
-          daysLeft: 60,
-          image: '/campaign2.jpg',
-        },
-        {
-          id: 3,
-          title: 'Sports Complex Renovation',
-          description: 'Upgrade our sports facilities for better training',
-          goal: 3000000,
-          raised: 750000,
-          daysLeft: 90,
-          image: '/campaign3.jpg',
-        },
-      ]);
-
-      // Mock recent activity
-      setRecentActivity([
-        {
-          id: 1,
-          campaignName: 'Scholarship Fund 2025',
-          amount: 50000,
-          date: '2025-10-28',
-        },
-        {
-          id: 2,
-          campaignName: 'New Library Construction',
-          amount: 25000,
-          date: '2025-10-15',
-        },
-        {
-          id: 3,
-          campaignName: 'Sports Complex Renovation',
-          amount: 50000,
-          date: '2025-09-20',
-        },
-      ]);
-
-      // Mock monthly donations for chart
-      setMonthlyDonations([
-        { month: 'Jan', amount: 15000 },
-        { month: 'Feb', amount: 20000 },
-        { month: 'Mar', amount: 10000 },
-        { month: 'Apr', amount: 25000 },
-        { month: 'May', amount: 15000 },
-        { month: 'Jun', amount: 30000 },
-        { month: 'Jul', amount: 0 },
-        { month: 'Aug', amount: 5000 },
-        { month: 'Sep', amount: 50000 },
-        { month: 'Oct', amount: 75000 },
-      ]);
-
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    // Check authentication
-    const token = localStorage.getItem('token');
-    const userEmail = localStorage.getItem('userEmail');
-    const userRole = localStorage.getItem('userRole');
+    const fetchDashboardData = async () => {
+      try {
+        // Check authentication
+        const token = localStorage.getItem('token');
+        const userEmail = localStorage.getItem('userEmail');
+        const userRole = localStorage.getItem('userRole');
 
-    if (!token || userRole !== 'alumni') {
-      router.push('/login');
-      return;
-    }
+        if (!token || userRole !== 'alumni') {
+          router.push('/login');
+          return;
+        }
 
-    // Extract name from email or get from stored data
-    const name = userEmail ? userEmail.split('@')[0] : 'Alumni';
-    setUserName(name.charAt(0).toUpperCase() + name.slice(1));
+        // Extract name from email or get from stored data
+        const name = userEmail ? userEmail.split('@')[0] : 'Alumni';
+        setUserName(name.charAt(0).toUpperCase() + name.slice(1));
 
-    // Fetch dashboard data
+        setIsLoading(true);
+        
+        // Fetch analytics dashboard data
+        const dashboardData = await analyticsAPI.getDashboard();
+        
+        // Fetch donation statistics
+        const donationStats = await donationsAPI.getStatistics();
+        
+        // Set stats from API
+        setStats({
+          totalDonated: dashboardData.total_donations || 0,
+          campaignsSupported: donationStats.total_campaigns || 0,
+          recentDonations: donationStats.recent_count || 0,
+        });
+
+        // Fetch active campaigns
+        const campaignsData = await campaignsAPI.list({ status: 'active' });
+        
+        // Map campaigns to expected format (take first 3)
+        const mappedCampaigns: Campaign[] = campaignsData.results.slice(0, 3).map((campaign: any) => {
+          const deadline = new Date(campaign.end_date);
+          const today = new Date();
+          const daysLeft = Math.max(0, Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+          
+          return {
+            id: campaign.id,
+            title: campaign.title,
+            description: campaign.description,
+            goal: parseFloat(campaign.goal_amount),
+            raised: parseFloat(campaign.current_amount),
+            daysLeft: daysLeft,
+            image: campaign.image_url || '/campaign1.jpg',
+          };
+        });
+        
+        setActiveCampaigns(mappedCampaigns);
+
+        // Fetch recent donations
+        const recentDonationsData = await donationsAPI.list();
+        
+        const mappedActivity: DonationActivity[] = recentDonationsData.results.slice(0, 3).map((donation: any) => ({
+          id: donation.id,
+          campaignName: donation.campaign_title || 'Campaign',
+          amount: parseFloat(donation.amount),
+          date: donation.created_at,
+        }));
+        
+        setRecentActivity(mappedActivity);
+
+        // Mock monthly donations for chart (API doesn't provide this yet)
+        setMonthlyDonations([
+          { month: 'Jan', amount: 15000 },
+          { month: 'Feb', amount: 20000 },
+          { month: 'Mar', amount: 10000 },
+          { month: 'Apr', amount: 25000 },
+          { month: 'May', amount: 15000 },
+          { month: 'Jun', amount: 30000 },
+          { month: 'Jul', amount: 0 },
+          { month: 'Aug', amount: 5000 },
+          { month: 'Sep', amount: 50000 },
+          { month: 'Oct', amount: 75000 },
+        ]);
+
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        setIsLoading(false);
+      }
+    };
+    
     fetchDashboardData();
   }, [router]);
 

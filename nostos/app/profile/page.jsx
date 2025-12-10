@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { authAPI } from '@/lib/api';
+import type { User } from '@/lib/types';
 
 interface UserProfile {
   id: number;
@@ -42,33 +44,28 @@ export default function ProfilePage() {
   const fetchProfile = async () => {
     try {
       setIsLoading(true);
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/profile/', {
-      //   headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      // });
-      // const data = await response.json();
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const mockProfile: UserProfile = {
-        id: 1,
-        name: 'Arjun Mehta',
-        email: 'arjun.mehta@email.com',
-        role: localStorage.getItem('role') as 'alumni' | 'admin' || 'alumni',
-        phone: '+91 98765 43210',
-        department: 'Computer Science',
-        graduationYear: '2019',
-        currentCompany: 'Tech Solutions Pvt Ltd',
-        currentPosition: 'Senior Software Engineer',
-        location: 'Bangalore, Karnataka',
-        linkedIn: 'https://linkedin.com/in/arjunmehta',
-        bio: 'Passionate about building scalable applications and mentoring junior developers. Alumni of batch 2019, actively contributing to the institution\'s growth.',
+      const data = await authAPI.getProfile();
+      
+      // Map backend User type to frontend UserProfile
+      const userProfile: UserProfile = {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        phone: data.phone || '',
+        department: data.department || '',
+        graduationYear: data.graduation_year?.toString() || '',
+        currentCompany: '',
+        currentPosition: '',
+        location: '',
+        linkedIn: '',
+        bio: '',
         profilePicture: '',
-        memberSince: '2019-06-15',
+        memberSince: data.date_joined?.split('T')[0] || '',
       };
 
-      setProfile(mockProfile);
-      setFormData(mockProfile);
+      setProfile(userProfile);
+      setFormData(userProfile);
       setIsLoading(false);
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -114,17 +111,16 @@ export default function ProfilePage() {
 
     try {
       setIsSaving(true);
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/profile/', {
-      //   method: 'PUT',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': `Bearer ${localStorage.getItem('token')}`
-      //   },
-      //   body: JSON.stringify(formData)
-      // });
       
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Map frontend UserProfile to backend expected format
+      const updateData = {
+        name: formData.name,
+        phone: formData.phone,
+        department: formData.department,
+        graduation_year: formData.graduationYear ? parseInt(formData.graduationYear) : undefined,
+      };
+      
+      await authAPI.updateProfile(updateData);
 
       setProfile(formData);
       setIsEditing(false);
@@ -164,20 +160,11 @@ export default function ProfilePage() {
 
     try {
       setIsSaving(true);
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/profile/change-password/', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': `Bearer ${localStorage.getItem('token')}`
-      //   },
-      //   body: JSON.stringify({
-      //     current_password: passwordData.currentPassword,
-      //     new_password: passwordData.newPassword
-      //   })
-      // });
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      await authAPI.changePassword(
+        passwordData.currentPassword,
+        passwordData.newPassword
+      );
 
       setPasswordData({
         currentPassword: '',

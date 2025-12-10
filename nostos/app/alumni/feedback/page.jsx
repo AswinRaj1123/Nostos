@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { aiAPI } from '@/lib/api';
 
 interface SentimentResult {
   sentiment: 'positive' | 'negative' | 'neutral';
@@ -66,67 +67,14 @@ export default function FeedbackPage() {
     setSentimentResult(null);
 
     try {
-      // TODO: Replace with actual sentiment analysis API call
-      console.log('Analyzing feedback:', feedback);
-
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // Mock sentiment analysis based on keywords
-      const feedbackLower = feedback.toLowerCase();
-      let sentiment: 'positive' | 'negative' | 'neutral' = 'neutral';
-      let confidence = 0;
-      const keywords: string[] = [];
-
-      // Positive keywords
-      const positiveWords = ['great', 'amazing', 'excellent', 'wonderful', 'fantastic', 'proud', 'love', 'perfect', 'outstanding', 'impressed', 'grateful', 'thankful', 'happy', 'appreciate'];
-      const positiveCount = positiveWords.filter(word => {
-        if (feedbackLower.includes(word)) {
-          keywords.push(word);
-          return true;
-        }
-        return false;
-      }).length;
-
-      // Negative keywords
-      const negativeWords = ['bad', 'poor', 'terrible', 'awful', 'disappointing', 'disappointed', 'issue', 'problem', 'concern', 'urgent', 'lacking', 'needs improvement', 'worst'];
-      const negativeCount = negativeWords.filter(word => {
-        if (feedbackLower.includes(word)) {
-          keywords.push(word);
-          return true;
-        }
-        return false;
-      }).length;
-
-      // Neutral keywords
-      const neutralWords = ['okay', 'fine', 'average', 'suggestion', 'recommend', 'could', 'should', 'would', 'maybe'];
-      neutralWords.forEach(word => {
-        if (feedbackLower.includes(word) && !keywords.includes(word)) {
-          keywords.push(word);
-        }
-      });
-
-      // Determine sentiment
-      if (positiveCount > negativeCount) {
-        sentiment = 'positive';
-        confidence = Math.min(50 + (positiveCount * 15), 95);
-      } else if (negativeCount > positiveCount) {
-        sentiment = 'negative';
-        confidence = Math.min(50 + (negativeCount * 15), 95);
-      } else {
-        sentiment = 'neutral';
-        confidence = 60 + Math.random() * 20;
-      }
+      // Call AI API to analyze feedback sentiment
+      const result = await aiAPI.analyzeFeedback(feedback);
 
       const mockResult: SentimentResult = {
-        sentiment,
-        confidence: Math.round(confidence),
-        keywords: keywords.slice(0, 5),
-        summary: sentiment === 'positive' 
-          ? 'Your feedback expresses appreciation and positive sentiment towards the institution/campaign.'
-          : sentiment === 'negative'
-          ? 'Your feedback highlights areas of concern that need attention.'
-          : 'Your feedback provides constructive suggestions and observations.',
+        sentiment: result.sentiment as 'positive' | 'negative' | 'neutral',
+        confidence: result.confidence || 75,
+        keywords: result.keywords || [],
+        summary: result.summary || 'Feedback analyzed successfully.',
       };
 
       setSentimentResult(mockResult);

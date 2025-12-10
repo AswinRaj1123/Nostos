@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { campaignsAPI } from '@/lib/api';
+import type { Campaign as APICampaign, Testimonial, CampaignUpdate } from '@/lib/types';
 
 interface Campaign {
   id: number;
@@ -50,100 +52,91 @@ export default function CampaignDetailsPage() {
   const [donationMessage, setDonationMessage] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
 
-  const fetchCampaignDetails = async () => {
-    try {
-      // TODO: Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Mock campaign data
-      const mockCampaign: Campaign = {
-        id: parseInt(campaignId),
-        title: 'New Library Construction',
-        description: 'Help us build a state-of-the-art library with modern facilities',
-        fullDescription: `We are embarking on an ambitious project to construct a new, state-of-the-art library that will serve as a beacon of knowledge and learning for our students. This modern facility will feature:
-
-• Digital Learning Zones with cutting-edge technology
-• Collaborative study spaces for group projects
-• Quiet reading rooms for focused study
-• Research labs with access to global databases
-• Accessibility features for students with disabilities
-• Energy-efficient design with sustainable materials
-
-The new library will span 50,000 square feet and will house over 100,000 books, along with digital resources, multimedia equipment, and comfortable seating for 500+ students. This project represents our commitment to providing world-class educational infrastructure.
-
-Your contribution will directly impact:
-- Enhanced learning opportunities for 5,000+ students
-- Improved research capabilities for faculty
-- Community engagement through public programs
-- Long-term value for future generations of alumni
-
-Join us in building a legacy that will inspire learning for decades to come!`,
-        category: 'Infrastructure',
-        goal: 5000000,
-        raised: 3250000,
-        donors: 245,
-        daysLeft: 45,
-        deadline: '2025-12-15',
-        image: '/library.jpg',
-        organizer: 'Alumni Association',
-        createdDate: '2025-09-15',
-      };
-
-      // Mock top donors
-      const mockTopDonors: Donor[] = [
-        { id: 1, name: 'Rajesh Kumar', amount: 500000, date: '2025-10-25', message: 'Proud to contribute to our alma mater!' },
-        { id: 2, name: 'Priya Sharma', amount: 300000, date: '2025-10-20', message: 'Education is the key to future success.' },
-        { id: 3, name: 'Anonymous', amount: 250000, date: '2025-10-18' },
-        { id: 4, name: 'Amit Patel', amount: 200000, date: '2025-10-15', message: 'Happy to support this initiative!' },
-        { id: 5, name: 'Sneha Gupta', amount: 150000, date: '2025-10-12' },
-      ];
-
-      // Mock recent donors
-      const mockRecentDonors: Donor[] = [
-        { id: 6, name: 'Vikram Singh', amount: 50000, date: '2025-10-28' },
-        { id: 7, name: 'Meera Reddy', amount: 75000, date: '2025-10-27', message: 'Great cause!' },
-        { id: 8, name: 'Arjun Malhotra', amount: 25000, date: '2025-10-26' },
-        { id: 9, name: 'Kavya Nair', amount: 100000, date: '2025-10-25' },
-        { id: 10, name: 'Anonymous', amount: 30000, date: '2025-10-24' },
-      ];
-
-      // Mock comments
-      const mockComments: Comment[] = [
-        {
-          id: 1,
-          name: 'Rohit Verma',
-          message: 'This is an excellent initiative! The new library will truly transform the learning experience for students. Proud to be part of this.',
-          date: '2025-10-26',
-          avatar: 'RV',
-        },
-        {
-          id: 2,
-          name: 'Ananya Iyer',
-          message: 'As an alumna, I remember spending countless hours in the old library. Excited to see the next generation have access to world-class facilities!',
-          date: '2025-10-24',
-          avatar: 'AI',
-        },
-        {
-          id: 3,
-          name: 'Karthik Ramesh',
-          message: 'Already donated and encouraging my batchmates to contribute as well. Let\'s make this happen!',
-          date: '2025-10-22',
-          avatar: 'KR',
-        },
-      ];
-
-      setCampaign(mockCampaign);
-      setTopDonors(mockTopDonors);
-      setRecentDonors(mockRecentDonors);
-      setComments(mockComments);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error fetching campaign details:', error);
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchCampaignDetails = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Fetch campaign details from API
+        const apiCampaign = await campaignsAPI.get(parseInt(campaignId));
+        
+        // Calculate days left
+        const deadline = new Date(apiCampaign.end_date);
+        const today = new Date();
+        const daysLeft = Math.max(0, Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+        
+        // Map API campaign to local Campaign type
+        const mappedCampaign: Campaign = {
+          id: apiCampaign.id,
+          title: apiCampaign.title,
+          description: apiCampaign.description,
+          fullDescription: apiCampaign.description, // Use description as full description
+          category: apiCampaign.category,
+          goal: parseFloat(apiCampaign.goal_amount),
+          raised: parseFloat(apiCampaign.current_amount),
+          donors: apiCampaign.donor_count || 0,
+          daysLeft: daysLeft,
+          deadline: apiCampaign.end_date,
+          image: apiCampaign.image_url || '/library.jpg',
+          organizer: 'Alumni Association',
+          createdDate: apiCampaign.created_at,
+        };
+
+        setCampaign(mappedCampaign);
+        
+        // Mock top donors (API doesn't provide this endpoint yet)
+        const mockTopDonors: Donor[] = [
+          { id: 1, name: 'Rajesh Kumar', amount: 500000, date: '2025-10-25', message: 'Proud to contribute to our alma mater!' },
+          { id: 2, name: 'Priya Sharma', amount: 300000, date: '2025-10-20', message: 'Education is the key to future success.' },
+          { id: 3, name: 'Anonymous', amount: 250000, date: '2025-10-18' },
+          { id: 4, name: 'Amit Patel', amount: 200000, date: '2025-10-15', message: 'Happy to support this initiative!' },
+          { id: 5, name: 'Sneha Gupta', amount: 150000, date: '2025-10-12' },
+        ];
+
+        // Mock recent donors
+        const mockRecentDonors: Donor[] = [
+          { id: 6, name: 'Vikram Singh', amount: 50000, date: '2025-10-28' },
+          { id: 7, name: 'Meera Reddy', amount: 75000, date: '2025-10-27', message: 'Great cause!' },
+          { id: 8, name: 'Arjun Malhotra', amount: 25000, date: '2025-10-26' },
+          { id: 9, name: 'Kavya Nair', amount: 100000, date: '2025-10-25' },
+          { id: 10, name: 'Anonymous', amount: 30000, date: '2025-10-24' },
+        ];
+
+        // Mock comments
+        const mockComments: Comment[] = [
+          {
+            id: 1,
+            name: 'Rohit Verma',
+            message: 'This is an excellent initiative! The new library will truly transform the learning experience for students. Proud to be part of this.',
+            date: '2025-10-26',
+            avatar: 'RV',
+          },
+          {
+            id: 2,
+            name: 'Ananya Iyer',
+            message: 'As an alumna, I remember spending countless hours in the old library. Excited to see the next generation have access to world-class facilities!',
+            date: '2025-10-24',
+            avatar: 'AI',
+          },
+          {
+            id: 3,
+            name: 'Karthik Ramesh',
+            message: 'Already donated and encouraging my batchmates to contribute as well. Let\'s make this happen!',
+            date: '2025-10-22',
+            avatar: 'KR',
+          },
+        ];
+
+        setTopDonors(mockTopDonors);
+        setRecentDonors(mockRecentDonors);
+        setComments(mockComments);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error fetching campaign details:', error);
+        setIsLoading(false);
+      }
+    };
+
     fetchCampaignDetails();
   }, [campaignId]);
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { campaignsAPI, donationsAPI } from '@/lib/api';
 
 interface Campaign {
   id: number;
@@ -53,40 +54,42 @@ export default function DonatePage() {
 
   const predefinedAmounts = [1000, 2500, 5000, 10000, 25000, 50000];
 
-  const fetchCampaignDetails = useCallback(async () => {
-    try {
-      // TODO: Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      const mockCampaign: Campaign = {
-        id: parseInt(campaignId),
-        title: 'New Library Construction',
-        category: 'Infrastructure',
-        goal: 5000000,
-        raised: 3250000,
-        image: '/library.jpg',
-      };
-
-      setCampaign(mockCampaign);
-      setIsLoading(false);
-
-      // Pre-fill donor info if logged in
-      const token = localStorage.getItem('token');
-      if (token) {
-        // TODO: Fetch user details from API
-        setDonorName('John Doe');
-        setDonorEmail('john@example.com');
-        setDonorPhone('9876543210');
-      }
-    } catch (error) {
-      console.error('Error fetching campaign:', error);
-      setIsLoading(false);
-    }
-  }, [campaignId]);
-
   useEffect(() => {
+    const fetchCampaignDetails = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Fetch campaign details from API
+        const apiCampaign = await campaignsAPI.get(parseInt(campaignId));
+
+        const mappedCampaign: Campaign = {
+          id: apiCampaign.id,
+          title: apiCampaign.title,
+          category: apiCampaign.category,
+          goal: parseFloat(apiCampaign.goal_amount),
+          raised: parseFloat(apiCampaign.current_amount),
+          image: apiCampaign.image_url || '/library.jpg',
+        };
+
+        setCampaign(mappedCampaign);
+        setIsLoading(false);
+
+        // Pre-fill donor info if logged in
+        const token = localStorage.getItem('token');
+        if (token) {
+          // TODO: Fetch user details from API
+          setDonorName('John Doe');
+          setDonorEmail('john@example.com');
+          setDonorPhone('9876543210');
+        }
+      } catch (error) {
+        console.error('Error fetching campaign:', error);
+        setIsLoading(false);
+      }
+    };
+    
     fetchCampaignDetails();
-  }, [fetchCampaignDetails]);
+  }, [campaignId]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -163,32 +166,25 @@ export default function DonatePage() {
     try {
       const amount = getSelectedAmount();
 
-      // TODO: Integrate with actual payment gateway (Razorpay/Stripe)
-      // TODO: Call backend API to record donation
+      // Create donation via API
       const donationData = {
-        campaign_id: campaignId,
+        campaign: parseInt(campaignId),
         amount: amount,
-        donor_name: isAnonymous ? 'Anonymous' : donorName,
-        donor_email: isAnonymous ? '' : donorEmail,
-        donor_phone: isAnonymous ? '' : donorPhone,
         payment_method: paymentMethod,
         message: message,
         is_anonymous: isAnonymous,
       };
 
-      console.log('Donation Data:', donationData);
+      const donation = await donationsAPI.create(donationData);
 
-      // Simulate payment processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Generate mock receipt
+      // Generate receipt from API response
       const mockReceipt: DonationReceipt = {
-        receiptId: `RCPT${Date.now()}`,
+        receiptId: `RCPT${donation.id}`,
         campaignTitle: campaign?.title || '',
-        amount: amount,
-        transactionId: `TXN${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
-        donorName: isAnonymous ? 'Anonymous' : donorName,
-        date: new Date().toISOString(),
+        amount: parseFloat(donation.amount),
+        transactionId: donation.transaction_id || `TXN${Math.random().toString(36).substring(2, 11).toUpperCase()}`,
+        donorName: donation.donor_name,
+        date: donation.created_at,
         paymentMethod: paymentMethod.toUpperCase(),
       };
 

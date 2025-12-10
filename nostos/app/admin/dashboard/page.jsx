@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { analyticsAPI, donationsAPI, campaignsAPI } from '@/lib/api';
 
 interface DashboardStats {
   totalDonations: number;
@@ -45,43 +46,47 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check authentication and role
-    const token = localStorage.getItem('token');
-    const role = localStorage.getItem('role');
-    
-    if (!token || role !== 'admin') {
-      router.push('/login');
-      return;
-    }
+    const fetchDashboardData = async () => {
+      try {
+        // Check authentication and role
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('role');
+        
+        if (!token || role !== 'admin') {
+          router.push('/login');
+          return;
+        }
 
-    fetchDashboardData();
-  }, [router]);
+        setIsLoading(true);
 
-  const fetchDashboardData = async () => {
-    try {
-      // TODO: Replace with actual API calls
-      await new Promise(resolve => setTimeout(resolve, 1000));
+        // Fetch analytics dashboard data
+        const dashboardData = await analyticsAPI.getDashboard();
+        
+        // Fetch donation statistics
+        const donationStats = await donationsAPI.getStatistics();
+        
+        // Mock stats (combine API data with mock)
+        const mockStats: DashboardStats = {
+          totalDonations: dashboardData.total_donations || 12750000,
+          activeCampaigns: dashboardData.active_campaigns || 15,
+          alumniCount: dashboardData.total_alumni || 1247,
+          recentTransactions: donationStats.recent_count || 342,
+          thisMonthDonations: dashboardData.monthly_donations || 2450000,
+          lastMonthDonations: 1980000,
+        };
 
-      // Mock stats
-      const mockStats: DashboardStats = {
-        totalDonations: 12750000,
-        activeCampaigns: 15,
-        alumniCount: 1247,
-        recentTransactions: 342,
-        thisMonthDonations: 2450000,
-        lastMonthDonations: 1980000,
-      };
+        setStats(mockStats);
 
-      // Mock recent transactions
-      const mockTransactions: Transaction[] = [
-        {
-          id: 1,
-          donorName: 'Rajesh Kumar',
-          amount: 250000,
-          campaign: 'New Library Construction',
-          date: '2025-10-31',
-          status: 'completed',
-        },
+        // Mock recent transactions
+        const mockTransactions: Transaction[] = [
+          {
+            id: 1,
+            donorName: 'Rajesh Kumar',
+            amount: 250000,
+            campaign: 'New Library Construction',
+            date: '2025-10-31',
+            status: 'completed',
+          },
         {
           id: 2,
           donorName: 'Priya Sharma',
@@ -156,6 +161,9 @@ export default function AdminDashboard() {
       setIsLoading(false);
     }
   };
+  
+  fetchDashboardData();
+}, [router]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {

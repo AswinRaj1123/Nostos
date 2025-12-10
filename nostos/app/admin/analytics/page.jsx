@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { analyticsAPI } from '@/lib/api';
 
 interface DonationTrendData {
   month: string;
@@ -52,26 +53,24 @@ export default function AdminAnalyticsPage() {
   const [selectedTimeframe, setSelectedTimeframe] = useState<'6m' | '12m' | '24m'>('12m');
 
   useEffect(() => {
-    // Check authentication and role
-    const token = localStorage.getItem('token');
-    const role = localStorage.getItem('role');
-    
-    if (!token || role !== 'admin') {
-      router.push('/login');
-      return;
-    }
+    const fetchAnalyticsData = async () => {
+      try {
+        // Check authentication and role
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('role');
+        
+        if (!token || role !== 'admin') {
+          router.push('/login');
+          return;
+        }
 
-    fetchAnalyticsData();
-  }, [router, selectedTimeframe]);
-
-  const fetchAnalyticsData = async () => {
-    try {
-      setIsLoading(true);
-      // TODO: Replace with actual ML API calls
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // Mock donation trend data with ML regression
-      const mockTrends: DonationTrendData[] = [
+        setIsLoading(true);
+        
+        // Fetch trends from analytics API
+        const trendsData = await analyticsAPI.getTrends();
+        
+        // Mock donation trend data with ML regression
+        const mockTrends: DonationTrendData[] = [
         { month: 'Nov 2024', actual: 850000, predicted: 820000, lowerBound: 780000, upperBound: 860000 },
         { month: 'Dec 2024', actual: 1200000, predicted: 1150000, lowerBound: 1100000, upperBound: 1200000 },
         { month: 'Jan 2025', actual: 950000, predicted: 980000, lowerBound: 930000, upperBound: 1030000 },
@@ -239,6 +238,9 @@ export default function AdminAnalyticsPage() {
       setIsLoading(false);
     }
   };
+  
+  fetchAnalyticsData();
+}, [router, selectedTimeframe]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
